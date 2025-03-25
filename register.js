@@ -1,9 +1,10 @@
 import Web3 from "web3";
 import { CHAIN_CONFIGS } from "./constants.js";
 import abi from "./abi.js";
-import { sendContractCall, signRawData } from "./utils.js";
+import { ethersSign, sendContractCall } from "./utils.js";
 import { readFileSync } from "node:fs";
 import logger from "./logger.js";
+import { utils } from "ethers";
 
 const { RPC_URL, STAKE_REGISTRY_ADDR, SERVICE_MANAGER_ADDR } =
   CHAIN_CONFIGS[process.env.CHAIN_ID];
@@ -57,8 +58,11 @@ async function run() {
   const isAlreadyRegistered = await isOperatorRegistered(account.address);
 
   if (!isAlreadyRegistered) {
-    const salt = Web3.utils.randomHex(32);
-    const expiry = Math.floor(Date.now() / 1000) + 900; // 15 mintues
+    const salt = utils.hexZeroPad(utils.randomBytes(32), 32);
+    const expiry = utils.hexZeroPad(
+      utils.hexlify(Math.floor(Date.now() / 1000) + 60 * 60),
+      32
+    );
 
     const msgToSign = await calculateOperatorAvsRegistrationDigestHash(
       account.address,
@@ -67,7 +71,7 @@ async function run() {
       expiry
     );
 
-    const operatorSignature = signRawData(msgToSign, account.privateKey);
+    const operatorSignature = ethersSign(account.privateKey, msgToSign);
 
     const wallet = {
       address: account.address,

@@ -1,21 +1,7 @@
-import * as ethUtil from "ethereumjs-util";
+import { ethers, utils } from "ethers";
 
 export const timeout = (ms) =>
   new Promise((resolve, reject) => setTimeout(resolve, ms));
-
-export function signRawData(data, privateKey) {
-  function removeHexPrefix(hexString) {
-    if (hexString.startsWith("0x") || hexString.startsWith("0X")) {
-      return hexString.slice(2);
-    }
-    return hexString;
-  }
-  const { v, r, s } = ethUtil.ecsign(
-    Buffer.from(removeHexPrefix(data), "hex"),
-    Buffer.from(removeHexPrefix(privateKey), "hex")
-  );
-  return ethUtil.toCompactSig(v, r, s);
-}
 
 export async function sendContractCall(
   contract,
@@ -29,14 +15,14 @@ export async function sendContractCall(
   const contractMethod = contract.methods[method](...params);
   const gasPrice = await web3.eth.getGasPrice();
 
-  const gasLimit = await contractMethod.estimateGas({ from: pkWallet.address });
+  // const gasLimit = await contractMethod.estimateGas({ from: pkWallet.address });
 
   const txParams = {
     data: contractMethod.encodeABI(),
     from: pkWallet.address,
     to: contract.options.address,
     gasPrice: gasPrice,
-    gas: gasLimit,
+    gas: 1000000,
   };
 
   const signedTx = await web3.eth.accounts.signTransaction(
@@ -45,4 +31,12 @@ export async function sendContractCall(
   );
 
   return await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+}
+
+export function ethersSign(privateKey, signingHash) {
+  const wallet = new ethers.Wallet(privateKey);
+  const signature = wallet
+    ._signingKey()
+    .signDigest(utils.arrayify(signingHash));
+  return utils.joinSignature(signature);
 }
